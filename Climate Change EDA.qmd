@@ -61,7 +61,7 @@ GlobalTemperatures_na = GlobalTemperatures |> filter(is.na(LandAverageTemperatur
 range(GlobalTemperatures_na$dt)
 ```
 
-Another important observation is that the majority of these null values appear in the earlier date ranges. This is likely because pre-1850 climate data was often derived from sparse historical sources such as ship logs and journals. As these early records are less reliable and contribute to noise, removing them is a justified step in improving data quality for analysis.
+Another important observation is that the majority of these null values appear in the earlier date ranges. This is likely because pre-1850 climate data was often derived from sparse historical sources such as ship logs and journals. As these early records are less reliable and contribute to noise, removing them is a justified step in improving data quality for our analysis.
 
 ```{r}
 for (feature in colnames(GlobalTemperatures)) {
@@ -194,6 +194,15 @@ df |> ggplot(aes(year, avg_temp)) + geom_line() +
 GlobalTemperatures |> ggplot(aes(x = factor(decade), y = LandAverageTemperature)) +
   geom_boxplot(fill = "lightgray") +
   labs(title = "Temp Distribution by Decade", x = "Decade", y = "Temp (°C)")
+
+```
+
+```{r}
+GlobalTemperatures |> ggplot(aes(x = year)) +
+  geom_ribbon(aes(ymin = LandAverageTemperature - LandAverageTemperatureUncertainty, ymax = LandAverageTemperature + LandAverageTemperatureUncertainty), 
+              fill = "lightblue", alpha = 0.1) +
+  geom_line(aes(y = LandAverageTemperature), color = "blue") +
+  labs(title = "Avg Temp with Uncertainty Band", y = "Temperature (°C)", x = "Year")
 
 ```
 
