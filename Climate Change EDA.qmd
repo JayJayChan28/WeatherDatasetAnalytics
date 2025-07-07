@@ -1,0 +1,256 @@
+---
+title: "Climate Change EDA"
+format: html
+---
+
+```{r}
+#Load Required Libraries
+library(tidyverse)
+library(ggplot2)
+library(infer)
+
+```
+
+```{r}
+#Load Datasets
+GlobalLandTemperaturesByCity <- read.csv("~/Desktop/RStudio/Projects/First Analytics EDA project/Climate Dataset/GlobalLandTemperaturesByCity.csv")
+GlobalLandTemperaturesByCountry <- read.csv("~/Desktop/RStudio/Projects/First Analytics EDA project/Climate Dataset/GlobalLandTemperaturesByCountry.csv")
+GlobalLandTemperaturesByState <- read.csv("~/Desktop/RStudio/Projects/First Analytics EDA project/Climate Dataset/GlobalLandTemperaturesByState.csv")
+GlobalTemperatures <- read.csv("~/Desktop/RStudio/Projects/First Analytics EDA project/Climate Dataset/GlobalTemperatures.csv")
+```
+
+This project uses four historical temperature datasets from the Berkeley Earth dataset on Kaggle, which track average land temperatures globally, by country, state, and city from the 18th century to the present.
+
+## Exploratory Data analysis
+
+```{r}
+GlobalTemperatures |> head(5)
+```
+
+```{r}
+range(GlobalTemperatures$dt)
+range(GlobalLandTemperaturesByCountry$dt)
+range(GlobalLandTemperaturesByState$dt)
+range(GlobalLandTemperaturesByCity$dt)
+```
+
+Data ranges from mid 1700's to early 2000's
+
+```{r}
+glimpse(GlobalTemperatures)
+```
+
+```{r}
+colSums(is.na(GlobalTemperatures))
+```
+
+Missing data values for each column, seems like a majority of these missing values are coming from the earlier record dates when accuracy and data collection may not be as easy to collect.
+
+```{r}
+nrow(GlobalTemperatures)
+```
+
+```{r}
+GlobalTemperatures |> summarize(percent_null = sum(is.na(LandMaxTemperature))/n() * 100 ) 
+```
+
+Several features, including `LandMaxTemperatureUncertainty`, `LandMinTemperature`, and `LandAndOceanAverageTemperature`, have \~37.6% missing values. Although this is substantial, these columns are retained to preserve the dataset's completeness and allow for broader exploratory insights in later stages.
+
+```{r}
+GlobalTemperatures_na = GlobalTemperatures |> filter(is.na(LandAverageTemperature))
+range(GlobalTemperatures_na$dt)
+```
+
+Another important observation is that the majority of these null values appear in the earlier date ranges. This is likely because pre-1850 climate data was often derived from sparse historical sources such as ship logs and journals. As these early records are less reliable and contribute to noise, removing them is a justified step in improving data quality for analysis.
+
+```{r}
+for (feature in colnames(GlobalTemperatures)) {
+  # filter rows where current column has NA
+  GlobalTemperatures_na = GlobalTemperatures |> filter(is.na(get(feature)))
+  #checks if any rows returned, some features do not have null vals
+  if (nrow(GlobalTemperatures_na) > 0) {
+    # Find the date range where the current column is NA
+    range_temp <- range(GlobalTemperatures_na$dt, na.rm = TRUE)
+    cat(feature, "NA date range:", range_temp[1], "to", range_temp[2], "\n")
+  }
+}
+```
+
+## Data Cleaning and Preparation
+
+### Dealing with Null values
+
+Now that we know the null values are largely concentrated before 1850 and have a high potential to introduce noise, it makes sense to remove them entirely in order to focus on more reliable, modern data trends.
+
+```{r}
+GlobalTemperatures = GlobalTemperatures |> filter(dt >= as.Date("1850-01-01"))
+```
+
+Now we check if there are any more null values within the dataset
+
+```{r}
+GlobalTemperatures |> summarise(across(everything(), ~sum(is.na(.))))
+```
+
+Looks good, now we have no nan values
+
+```{r}
+glimpse(GlobalTemperatures)
+
+```
+
+However, notice how DT, representing the date time is a \<chr\> dtype. We want to convert the DT column to \<date\> type.
+
+```{r}
+
+GlobalTemperatures <- GlobalTemperatures |> mutate(dt = as.Date(dt))
+glimpse(GlobalTemperatures)
+
+```
+
+#### Summary
+
+Now that we have filtered and dealt with the nan values we are ready to look are some statistics.
+
+```{r}
+GlobalTemperatures = GlobalTemperatures |> mutate(year = as.numeric(format(dt, "%Y"))) |> mutate(decade = floor(year/10)*10)
+```
+
+```{r}
+GlobalTemperatures |> group_by(decade) |> 
+  summarise(decade_mean = mean(LandAverageTemperature)) 
+```
+
+Here is the average temp per decade
+
+------------------------------------------------------------------------
+
+```{r}
+GlobalTemperatures |> group_by(year) |> 
+  summarise(top_hottest = mean(LandAverageTemperature)) |> 
+  arrange(desc(top_hottest)) |> head(5)
+```
+
+Top 5 average hottest YEARS
+
+------------------------------------------------------------------------
+
+```{r}
+GlobalTemperatures |> group_by(year) |> 
+  summarise(top_coldest = mean(LandAverageTemperature)) |> 
+  arrange(top_coldest) |> head(5)
+```
+
+Top 5 average Coldest YEARS
+
+------------------------------------------------------------------------
+
+```{r}
+decade_variance <- GlobalTemperatures |>
+  group_by(decade) |>
+  summarise(
+    temp_variance = var(LandAverageTemperature, na.rm = TRUE)
+  )
+decade_variance
+```
+
+Variance Per decade
+
+------------------------------------------------------------------------
+
+### Visualizations
+
+```{r}
+#Create dataframe with avg temp per year
+global_temp_avg = GlobalTemperatures |> group_by(year) |> 
+  summarise(avg_temp = mean(LandAverageTemperature))
+```
+
+```{r}
+global_temp_avg |> ggplot(aes(year, avg_temp)) +
+  geom_line() + 
+  labs(title = "Global Avg Temp Over Time", x = "Year", y = "Temperature")
+```
+
+```{r}
+GlobalLandTemperaturesByCountry_year_US = GlobalLandTemperaturesByCountry |> 
+  filter(!is.na(AverageTemperature), Country == "United States") |> 
+  mutate(dt = as.Date(dt)) |> 
+  mutate(year = as.numeric(format(dt, "%Y")))
+
+```
+
+```{r}
+df = GlobalLandTemperaturesByCountry_year_US |> group_by(year) |> 
+  summarise(avg_temp = mean(AverageTemperature))
+```
+
+```{r}
+df |> ggplot(aes(year, avg_temp)) + geom_line() +
+  labs(title = "US Avg Temp Over Time", x = "Year", y = "Temperature")
+```
+
+```{r}
+GlobalTemperatures |> ggplot(aes(x = factor(decade), y = LandAverageTemperature)) +
+  geom_boxplot(fill = "lightgray") +
+  labs(title = "Temp Distribution by Decade", x = "Decade", y = "Temp (°C)")
+
+```
+
+### Hypothesis Testing
+
+The purpose of this hypothesis test is to determine whether the observed increase in average temperatures in the **United States** can be explained by **random chance**, or if it reflects a **statistically significant shift** in climate patterns. I specifically focus on comparing temperatures **before and after 1950**, as the post-1950 period marks the onset of notably sharper year-over-year temperature increases.
+
+------------------------------------------------------------------------
+
+-   **Null Hypothesis (H₀)**: There is **no difference** in the mean annual temperature before and after 1950; any observed difference is due to **random variation**.
+
+-   **Alternative Hypothesis (H₁)**: The **mean annual temperature after 1950 is higher** than before 1950, and this increase is **not due to random chance**.
+
+------------------------------------------------------------------------
+
+A **significance level of α = 0.05** is used for this test. This means I will reject the null hypothesis if the p-value is **less than 0.05**, indicating strong evidence against the idea that the temperature increase is due to randomness.
+
+```{r}
+#filter out Null vals and label pre/post 1950's
+us_data = GlobalLandTemperaturesByCountry |>
+  filter(!is.na(AverageTemperature)) |>
+  mutate(dt = as.Date(dt),
+    year = as.numeric(format(dt, "%Y")),
+    period = ifelse(year < 1950, "Pre1950", "Post1950")
+  ) |> filter(Country == "United States")
+us_data |> head(5)
+```
+
+```{r}
+mean_pre = us_data |> filter(period == "Pre1950") |> summarize(mean_temp_pre = mean(AverageTemperature))
+mean_post = us_data |> filter(period == "Post1950") |> summarize(mean_temp_pre = mean(AverageTemperature))
+
+obs_test_stat = mean_post - mean_pre
+```
+
+```{r}
+perm_us = us_data |>
+  specify(response = AverageTemperature, explanatory = period) |>
+  hypothesize(null = "independence") |>
+  generate(reps = 2482, type = "permute") |>
+  calculate(stat = "diff in means", order = c("Post1950","Pre1950")) |>
+  visualize() +
+  shade_p_value(obs_test_stat, direction = "greater")
+perm_us
+```
+
+```{r}
+pp = us_data |>
+  specify(response = AverageTemperature, explanatory = period) |>
+  hypothesize(null = "independence") |>
+  generate(reps = 2000, type = "permute") |>
+  calculate(stat = "diff in means", order = c("Post1950","Pre1950")) |>
+  get_p_value(obs_stat = obs_test_stat, direction = "greater")
+
+pp
+```
+
+With a P_val of 0.0275 we exceed the our significance level α = **0.05** and reject the null hypothesis. This indicates that there is a **2.75% chance** of observing a result as extreme or more extreme than yours **if the null hypothesis were true**.
+
+**The final verdict:** The **mean annual temperature after 1950 is higher** than before 1950, and this increase is **not due to random chance**.
