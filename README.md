@@ -1,4 +1,8 @@
+
 # WeatherDatasetAnalytics
+=======
+# WeatherDatasetAnalytics# WeatherDatasetAnalytics
+>>>>>>> add_image
 
 ## Project Overview
 This project conducts an Exploratory Data Analysis (EDA) on global land temperature datasets to explore long-term climate trends. The goal is to visualize and statistically analyze temperature patterns over time, focusing on the impacts of climate change.
@@ -48,4 +52,7 @@ The analysis uses historical temperature data from the Berkeley Earth dataset, a
 3. Install required R packages:
 ```r
 install.packages(c("tidyverse", "infer", "ggplot2"))
+<<<<<<< HEAD
 
+=======
+>>>>>>> add_image
