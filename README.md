@@ -1,8 +1,5 @@
-
 # WeatherDatasetAnalytics
-=======
-# WeatherDatasetAnalytics# WeatherDatasetAnalytics
->>>>>>> add_image
+
 
 ## Project Overview
 This project conducts an Exploratory Data Analysis (EDA) on global land temperature datasets to explore long-term climate trends. The goal is to visualize and statistically analyze temperature patterns over time, focusing on the impacts of climate change.
